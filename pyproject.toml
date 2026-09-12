@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sme-bridge"
+version = "0.1.0"
+description = "Evidence-based pre-screening for Korean SME support programs"
+readme = "SME_Bridge_README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "asyncpg>=0.29,<1",
+    "fastapi>=0.100,<1",
+    "httpx>=0.27,<1",
+    "neo4j>=5,<7",
+    "pydantic>=2,<3",
+    "pydantic-settings>=2,<3",
+    "pymupdf>=1.24,<2",
+    "uvicorn[standard]>=0.30,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.10,<2",
+    "pytest>=8,<10",
+    "pytest-asyncio>=0.24,<2",
+    "respx>=0.21,<1",
+    "ruff>=0.8,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["sme_bridge"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true

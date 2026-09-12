@@ -1,0 +1,41 @@
+name: sme-bridge
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sme_bridge}
+      POSTGRES_USER: ${POSTGRES_USER:-sme_bridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'cypher-shell -u neo4j -p "$${NEO4J_AUTH#*/}" "RETURN 1" || exit 1'
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:

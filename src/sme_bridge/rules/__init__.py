@@ -1,0 +1,51 @@
+"""Deterministic eligibility rule engine."""
+
+from sme_bridge.rules.engine import (
+    evaluate_annual_sales,
+    evaluate_application_period,
+    evaluate_business_age,
+    evaluate_certifications,
+    evaluate_employee_count,
+    evaluate_funding_purpose,
+    evaluate_industry,
+    evaluate_region,
+    full_years_between,
+)
+from sme_bridge.rules.models import (
+    AnnualSalesRule,
+    ApplicationPeriodRule,
+    ApprovedRule,
+    BusinessAgeRule,
+    CertificationRule,
+    EmployeeCountRule,
+    FundingPurposeRule,
+    IndustryRule,
+    ReasonCode,
+    RegionRule,
+    RuleResult,
+    RuleStatus,
+)
+
+__all__ = [
+    "ApprovedRule",
+    "ApplicationPeriodRule",
+    "AnnualSalesRule",
+    "BusinessAgeRule",
+    "CertificationRule",
+    "EmployeeCountRule",
+    "FundingPurposeRule",
+    "IndustryRule",
+    "ReasonCode",
+    "RegionRule",
+    "RuleResult",
+    "RuleStatus",
+    "evaluate_employee_count",
+    "evaluate_application_period",
+    "evaluate_annual_sales",
+    "evaluate_business_age",
+    "evaluate_certifications",
+    "evaluate_funding_purpose",
+    "evaluate_industry",
+    "evaluate_region",
+    "full_years_between",
+]
