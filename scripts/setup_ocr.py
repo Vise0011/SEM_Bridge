@@ -52,6 +52,9 @@ def install(destination: Path) -> None:
                 temporary.write(data)
                 temporary_path = Path(temporary.name)
             try:
+                # These are public language models, not secrets. Keep them readable when
+                # copied into a container that deliberately runs as a non-root user.
+                temporary_path.chmod(0o644)
                 os.replace(temporary_path, target)
             finally:
                 temporary_path.unlink(missing_ok=True)

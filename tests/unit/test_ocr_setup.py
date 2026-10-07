@@ -28,6 +28,7 @@ def test_pinned_model_install_and_skip_verified(tmp_path, monkeypatch):
     setup.install(tmp_path)
     assert route.call_count == 1
     assert (tmp_path / "kor.traineddata").read_bytes() == data
+    assert (tmp_path / "kor.traineddata").stat().st_mode & 0o444 == 0o444
 
 
 @respx.mock
