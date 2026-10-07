@@ -42,3 +42,15 @@ def test_model_integrity_or_redirect_failure_preserves_existing(tmp_path: Path, 
     with pytest.raises((ValueError, httpx.HTTPError)):
         setup.install(tmp_path)
     assert target.read_bytes() == b"old model"
+
+
+def test_ocr_setup_does_not_require_postgres_credentials(tmp_path, monkeypatch):
+    setup = load_setup()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("STORAGE_BACKEND", "postgres")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "")
+    monkeypatch.setenv("NEO4J_PASSWORD", "")
+    calls = []
+    monkeypatch.setattr(setup, "install", calls.append)
+    assert setup.main() == 0
+    assert len(calls) == 1

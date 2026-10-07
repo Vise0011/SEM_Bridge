@@ -58,14 +58,22 @@ def install(destination: Path) -> None:
             print(f"{language}: installed and verified")
 
 
-if __name__ == "__main__":
+def main() -> int:
     from sme_bridge.config import Settings
 
     try:
-        install(Path(Settings().ocr_tessdata_path))
+        # Downloading language data does not require database credentials or connections.
+        install(Path(Settings(storage_backend="sqlite").ocr_tessdata_path))
     except httpx.HTTPStatusError as exc:
-        raise SystemExit(f"OCR setup failed: upstream HTTP {exc.response.status_code}.") from None
+        print(f"OCR setup failed: upstream HTTP {exc.response.status_code}.")
+        return 1
     except (httpx.HTTPError, ValueError, OSError) as exc:
-        raise SystemExit(
+        print(
             f"OCR setup failed: {type(exc).__name__}; check network, writable path and integrity."
-        ) from None
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

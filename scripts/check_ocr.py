@@ -7,7 +7,7 @@ from sme_bridge.documents.ocr import ocr_available, preview_ocr
 
 
 def main() -> int:
-    settings = Settings()
+    settings = Settings(storage_backend="sqlite")
     if not ocr_available(settings.ocr_tessdata_path):
         print("OCR data missing: python scripts/setup_ocr.py")
         return 1

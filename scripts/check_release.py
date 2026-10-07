@@ -15,7 +15,7 @@ def main() -> int:
         capture_output=True,
     ).stdout.decode("utf-8")
     files = sorted(set(listing.rstrip("\0").split("\0")))
-    settings = Settings()
+    settings = Settings(storage_backend="sqlite")
     secrets = [
         value.get_secret_value()
         for value in [settings.bizinfo_api_key, settings.postgres_password, settings.neo4j_password]
