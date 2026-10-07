@@ -139,5 +139,6 @@ python scripts/smoke_api.py
 PostgreSQL·Neo4j 통합 테스트는 CI의 임시 서비스 또는 명시적인 테스트 연결 설정이 있을 때 실행하며,
 연결 설정이 없으면 건너뜁니다. PostgreSQL 테스트는 임시 스키마를 생성하고 종료 시 해당 스키마만 제거합니다.
 실행한 환경 및 제약은 [시스템 카드](docs/system-card.md)에 기록합니다.
+실행 결과와 직접 확인 순서는 [테스트 가이드](docs/testing-guide.md)를 참고하세요.
 
 초기 목표 아키텍처는 [기획 문서](SME_Bridge_README.md)에 보존했습니다. 기획 문서의 수치·목표는 구현 결과가 아닙니다.

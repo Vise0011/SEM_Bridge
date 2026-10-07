@@ -41,3 +41,24 @@ jobs:
           SME_BRIDGE_TEST_POSTGRES_DSN: postgresql://test_user:test_password@127.0.0.1:5432/test_bridge
           SME_BRIDGE_TEST_NEO4J_URI: bolt://127.0.0.1:7687
       - run: docker build -t sme-bridge:test .
+      - name: Run built image with SQLite and verify restart persistence
+        run: |
+          docker run -d --name sme-bridge-sqlite-qa -e STORAGE_BACKEND=sqlite -e SQLITE_PATH=/tmp/bridge.sqlite3 -p 127.0.0.1:8000:8000 sme-bridge:test
+          timeout 45 bash -c 'until curl -fsS http://127.0.0.1:8000/ready; do sleep 1; done'
+          python scripts/smoke_api.py
+          python -c 'import httpx; c=httpx.Client(base_url="http://127.0.0.1:8000"); r=c.post("/v1/cases?source=demo",json={"business_type":"CORPORATION","query_date":"2026-10-07"}); r.raise_for_status(); open("/tmp/bridge-case.json","w").write(r.text)'
+          docker restart sme-bridge-sqlite-qa
+          timeout 45 bash -c 'until curl -fsS http://127.0.0.1:8000/ready; do sleep 1; done'
+          python -c 'import json,httpx; saved=json.load(open("/tmp/bridge-case.json")); r=httpx.get("http://127.0.0.1:8000/v1/cases/"+saved["case_id"]); r.raise_for_status(); assert r.json()==saved; print("Container restart persistence: OK")'
+          docker stop sme-bridge-sqlite-qa
+      - name: Run built image with PostgreSQL and Neo4j
+        run: |
+          docker run -d --name sme-bridge-postgres-qa --network host -e STORAGE_BACKEND=postgres -e POSTGRES_HOST=127.0.0.1 -e POSTGRES_DB=test_bridge -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password -e NEO4J_URI=bolt://127.0.0.1:7687 -e NEO4J_PASSWORD=test-password sme-bridge:test
+          timeout 45 bash -c 'until curl -fsS http://127.0.0.1:8000/ready; do sleep 1; done'
+          python scripts/smoke_api.py
+      - name: Collect test container logs and remove test containers
+        if: always()
+        run: |
+          docker logs sme-bridge-sqlite-qa || true
+          docker logs sme-bridge-postgres-qa || true
+          docker rm -f sme-bridge-sqlite-qa sme-bridge-postgres-qa || true
