@@ -9,10 +9,12 @@ import pytest
 from sme_bridge.clients.bizinfo import BizinfoNotice
 from sme_bridge.repositories.cases import IdempotencyConflict, PostgresCaseRepository
 from sme_bridge.repositories.documents import PostgresDocumentRepository
+from sme_bridge.repositories.jobs import ActiveCollectionError, PostgresJobRepository
 from sme_bridge.repositories.notices import PostgresNoticeRepository
 from sme_bridge.repositories.publications import PostgresPublicationRepository
 from sme_bridge.schemas.case import CaseCreated, CaseStatus
 from sme_bridge.schemas.document import ParsedPdf, PdfPage
+from sme_bridge.schemas.management import CollectionJob, CollectionRequest
 from sme_bridge.schemas.profile import BusinessProfile
 from sme_bridge.schemas.publication import PublicationDraft
 from sme_bridge.services.documents import store_parsed_document
@@ -37,6 +39,14 @@ async def test_postgres_full_persistence_and_current_version_gate() -> None:
         await documents.ensure_schema()
         await cases.ensure_schema()
         await publications.ensure_schema()
+        jobs = PostgresJobRepository(pool)
+        await jobs.ensure_schema()
+        active = CollectionJob(job_id="job_test", status="RUNNING", request=CollectionRequest())
+        await jobs.begin(active)
+        with pytest.raises(ActiveCollectionError):
+            await jobs.begin(active.model_copy(update={"job_id": "job_conflict"}))
+        await jobs.recover()
+        assert (await jobs.list())[0].status == "INTERRUPTED"
         snapshot = build_notice_snapshot(
             BizinfoNotice.model_validate(
                 {
@@ -55,7 +65,14 @@ async def test_postgres_full_persistence_and_current_version_gate() -> None:
             page_count=1,
             ocr_required_pages=[],
             pages=[
-                PdfPage(page_number=1, text=text, character_count=len(text), requires_ocr=False)
+                PdfPage(
+                    page_number=1,
+                    text=text,
+                    character_count=len(text),
+                    requires_ocr=False,
+                    document_kind="HWPX",
+                    location_kind="SECTION",
+                )
             ],
         )
         assert await store_parsed_document(
@@ -86,6 +103,7 @@ async def test_postgres_full_persistence_and_current_version_gate() -> None:
             }
         )
         publication = await verify_publication(draft, notices, documents)
+        assert publication.evidence[0].location_kind == "SECTION"
         await publications.publish(publication)
         assert len(await publications.find_approved()) == 1
         case = CaseCreated(

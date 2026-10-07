@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import asyncio
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,6 +15,7 @@ from pydantic import BaseModel
 from sme_bridge import __version__
 from sme_bridge.api.routes.cases import demo_program_repository
 from sme_bridge.api.routes.cases import router as cases_router
+from sme_bridge.api.routes.management import router as management_router
 from sme_bridge.api.routes.notices import router as notices_router
 from sme_bridge.config import Settings, get_settings
 from sme_bridge.repositories import Neo4jProgramRepository
@@ -31,15 +34,24 @@ class HealthResponse(BaseModel):
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Create shared database resources for the server process."""
     settings = getattr(application.state, "settings", None) or get_settings()
+    application.state.settings = settings
+    application.state.management_token = secrets.token_urlsafe(32)
+    application.state.collection_tasks = set()
+    application.state.ocr_lock = asyncio.Lock()
     application.state.storage_backend = settings.storage_backend
     async with open_storage(settings) as storage:
+        application.state.storage = storage
+        await storage.jobs.recover()
         application.state.case_repository = storage.cases
         application.state.notice_repository = storage.notices
         application.state.document_repository = storage.documents
         application.state.official_program_repository = storage.publications
         if settings.storage_backend == "sqlite":
             application.state.program_repository = demo_program_repository
-            yield
+            try:
+                yield
+            finally:
+                await stop_collection_tasks(application)
             return
         neo4j_driver = AsyncGraphDatabase.driver(
             settings.neo4j_uri,
@@ -53,7 +65,16 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             application.state.program_repository = program_repository
             yield
         finally:
+            await stop_collection_tasks(application)
             await neo4j_driver.close()
+
+
+async def stop_collection_tasks(application: FastAPI) -> None:
+    tasks = list(application.state.collection_tasks)
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -68,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.settings = settings
     application.include_router(cases_router)
     application.include_router(notices_router)
+    application.include_router(management_router)
     web_root = Path(__file__).parent / "web"
     application.mount("/static", StaticFiles(directory=web_root), name="static")
 

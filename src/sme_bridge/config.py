@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     bizinfo_api_key: SecretStr | None = None
     storage_backend: Literal["postgres", "sqlite"] = "postgres"
     sqlite_path: str = "data/local/bridge.sqlite3"
+    local_management_enabled: bool = False
+    ocr_tessdata_path: str = "data/local/tessdata"
 
     @model_validator(mode="after")
     def validate_backend_credentials(self) -> "Settings":

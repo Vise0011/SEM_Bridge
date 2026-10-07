@@ -16,6 +16,7 @@ async def main(port: int) -> None:
             "/docs",
             "/openapi.json",
             "/static/app.js",
+            "/static/manage.js",
             "/static/style.css",
             "/static/favicon.svg",
         ]:
@@ -50,7 +51,34 @@ async def main(port: int) -> None:
                 if len(passages) < 100:
                     break
                 page_offset += 100
-        print(f"Stored PDF pages: {pages}; OCR review flags: {ocr_pages}")
+        print(f"Stored document locations: {pages}; OCR review flags: {ocr_pages}")
+        management = await client.get("/v1/manage/status")
+        if management.status_code == 403:
+            print("Local management correctly unavailable through non-loopback transport")
+        else:
+            management.raise_for_status()
+            info = management.json()
+            if info["enabled"]:
+                headers = {"X-Bridge-Token": info["token"]}
+                assert (await client.get("/v1/manage/jobs", headers=headers)).status_code == 200
+                assert (await client.get("/v1/manage/jobs")).status_code == 403
+                assert (
+                    await client.get(
+                        "/v1/manage/jobs", headers={**headers, "Origin": "https://invalid.example"}
+                    )
+                ).status_code == 403
+                if notices:
+                    response = await client.get(
+                        f"/v1/manage/notices/{notices[0]['snapshot']['notice_id']}/suggestions",
+                        headers=headers,
+                    )
+                    response.raise_for_status()
+                    assert response.json()["approved"] is False
+                print("Local management token, origin guard and unapproved drafts: OK")
+            else:
+                assert info["token"] is None
+                assert (await client.get("/v1/manage/jobs")).status_code == 403
+                print("Local management disabled: OK")
         unknown_id = "qa_missing_" + uuid4().hex
         for path, expected in [
             ("/v1/notices?limit=0", 422),

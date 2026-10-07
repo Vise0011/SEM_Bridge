@@ -11,6 +11,7 @@ from sme_bridge.config import Settings
 from sme_bridge.repositories import CaseRepository, DocumentRepository, NoticeRepository
 from sme_bridge.repositories.cases import PostgresCaseRepository
 from sme_bridge.repositories.documents import PostgresDocumentRepository
+from sme_bridge.repositories.jobs import JobRepository, PostgresJobRepository, SQLiteJobRepository
 from sme_bridge.repositories.notices import PostgresNoticeRepository
 from sme_bridge.repositories.programs import ProgramRepository
 from sme_bridge.repositories.publications import PostgresPublicationRepository
@@ -34,6 +35,7 @@ class Storage:
     notices: NoticeRepository
     documents: DocumentRepository
     publications: PublicationRepository
+    jobs: JobRepository
 
 
 @asynccontextmanager
@@ -41,11 +43,14 @@ async def open_storage(settings: Settings) -> AsyncIterator[Storage]:
     if settings.storage_backend == "sqlite":
         store = SQLiteStore(settings.sqlite_path)
         await store.ensure_schema()
+        jobs = SQLiteJobRepository(store)
+        await jobs.ensure_schema()
         yield Storage(
             SQLiteCaseRepository(store),
             SQLiteNoticeRepository(store),
             SQLiteDocumentRepository(store),
             SQLitePublicationRepository(store),
+            jobs,
         )
         return
     pool = await asyncpg.create_pool(dsn=settings.postgres_dsn, min_size=1, max_size=5)
@@ -58,6 +63,8 @@ async def open_storage(settings: Settings) -> AsyncIterator[Storage]:
         await notices.ensure_schema()
         await documents.ensure_schema()
         await publications.ensure_schema()
-        yield Storage(cases, notices, documents, publications)
+        pg_jobs = PostgresJobRepository(pool)
+        await pg_jobs.ensure_schema()
+        yield Storage(cases, notices, documents, publications, pg_jobs)
     finally:
         await pool.close()

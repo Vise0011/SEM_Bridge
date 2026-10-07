@@ -1,8 +1,10 @@
 """Preparation and persistence of untrusted PDF page text."""
 
+import asyncio
 from typing import Protocol
 
 from sme_bridge.documents import parse_pdf
+from sme_bridge.documents.hwpx import parse_hwpx
 from sme_bridge.repositories.documents import DocumentRepository
 from sme_bridge.schemas.document import (
     DocumentIngestionResult,
@@ -30,6 +32,8 @@ def prepare_passages(parsed: ParsedPdf) -> list[DocumentPassage]:
                 text=sanitized.text,
                 character_count=len(sanitized.text),
                 requires_ocr=page.requires_ocr,
+                document_kind=page.document_kind,
+                location_kind=page.location_kind,
                 trust_level=sanitized.trust_level,
                 security_flags=sanitized.security_flags,
             )
@@ -68,7 +72,7 @@ async def ingest_notice_document(
         )
 
     data = await downloader.download(snapshot.attachment_url)
-    parsed = parse_pdf(data)
+    parsed = await asyncio.to_thread(parse_pdf if data.startswith(b"%PDF-") else parse_hwpx, data)
     passages = prepare_passages(parsed)
     inserted = await repository.save(
         notice_id=snapshot.notice_id,

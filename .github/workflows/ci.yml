@@ -36,6 +36,8 @@ jobs:
       - run: python -m ruff check .
       - run: python -m ruff format --check src scripts tests
       - run: python -m mypy src
+      - name: Install hash-pinned Korean and English OCR language data
+        run: python scripts/setup_ocr.py
       - run: python -m pytest -q
         env:
           SME_BRIDGE_TEST_POSTGRES_DSN: postgresql://test_user:test_password@127.0.0.1:5432/test_bridge
@@ -46,6 +48,8 @@ jobs:
           docker run -d --name sme-bridge-sqlite-qa -e STORAGE_BACKEND=sqlite -e SQLITE_PATH=/tmp/bridge.sqlite3 -p 127.0.0.1:8000:8000 sme-bridge:test
           timeout 45 bash -c 'until curl -fsS http://127.0.0.1:8000/ready; do sleep 1; done'
           python scripts/smoke_api.py
+          docker cp data/local/tessdata sme-bridge-sqlite-qa:/tmp/tessdata
+          docker exec -e OCR_TESSDATA_PATH=/tmp/tessdata sme-bridge-sqlite-qa python scripts/check_ocr.py
           python -c 'import httpx; c=httpx.Client(base_url="http://127.0.0.1:8000"); r=c.post("/v1/cases?source=demo",json={"business_type":"CORPORATION","query_date":"2026-10-07"}); r.raise_for_status(); open("/tmp/bridge-case.json","w").write(r.text)'
           docker restart sme-bridge-sqlite-qa
           timeout 45 bash -c 'until curl -fsS http://127.0.0.1:8000/ready; do sleep 1; done'

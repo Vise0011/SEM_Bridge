@@ -50,6 +50,7 @@ async def verify_publication(
                 notice_version=f"sha256:{draft.version_hash}",
                 source_kind=SourceKind.OFFICIAL_NOTICE,
                 pdf_sha256=citation.pdf_sha256,
+                location_kind=page.location_kind,
             )
         )
     return PublishedProgram(

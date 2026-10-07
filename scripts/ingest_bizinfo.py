@@ -8,7 +8,8 @@ import asyncpg
 
 from sme_bridge.clients import BizinfoClient, BizinfoClientError
 from sme_bridge.config import Settings
-from sme_bridge.documents import DocumentDownloadError, DocumentParseError, OfficialPdfDownloader
+from sme_bridge.documents import DocumentDownloadError, DocumentParseError
+from sme_bridge.documents.pdf import OfficialAttachmentDownloader
 from sme_bridge.security.content import SanitizationError
 from sme_bridge.services.documents import ingest_notice_document
 from sme_bridge.services.ingestion import build_notice_snapshot
@@ -28,16 +29,16 @@ async def main(*, count: int = 30, documents: bool = False, backend: str | None 
                 notices = await client.fetch_finance_notices(count=count)
             new_versions = 0
             outcomes: dict[str, int] = {}
-            async with OfficialPdfDownloader() as downloader:
+            async with OfficialAttachmentDownloader() as downloader:
                 for notice in notices:
                     snapshot = build_notice_snapshot(notice)
                     new_versions += int(await storage.notices.save(snapshot))
                     if not documents:
                         continue
                     if snapshot.attachment_name and not snapshot.attachment_name.lower().endswith(
-                        ".pdf"
+                        (".pdf", ".hwpx")
                     ):
-                        outcome = "UNSUPPORTED_ATTACHMENT"
+                        outcome = "FORMAT_CONVERSION_REQUIRED"
                     else:
                         try:
                             result = await ingest_notice_document(
@@ -45,7 +46,7 @@ async def main(*, count: int = 30, documents: bool = False, backend: str | None 
                             )
                             outcome = result.status
                         except DocumentDownloadError:
-                            outcome = "DOWNLOAD_FAILED_OR_NON_PDF"
+                            outcome = "DOWNLOAD_FAILED_OR_UNSUPPORTED"
                         except (DocumentParseError, SanitizationError):
                             outcome = "PARSE_OR_SANITIZATION_FAILED"
                     outcomes[outcome] = outcomes.get(outcome, 0) + 1
@@ -69,7 +70,9 @@ async def main(*, count: int = 30, documents: bool = False, backend: str | None 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--count", type=int, default=30)
-    parser.add_argument("--documents", action="store_true", help="Also download PDF attachments")
+    parser.add_argument(
+        "--documents", action="store_true", help="Also download PDF/HWPX attachments"
+    )
     parser.add_argument("--backend", choices=["sqlite", "postgres"])
     args = parser.parse_args()
     if not 1 <= args.count <= 100:

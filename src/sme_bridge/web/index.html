@@ -5,12 +5,27 @@
   <title>SEM Bridge · 지원사업 사전진단</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script>
+  <script src="/static/manage.js" defer></script>
 </head>
 <body>
 <header><div class="wrap"><p class="brand">SEM Bridge</p><h1>지원 공고를 찾고, 조건을 근거와 함께 확인하세요.</h1>
 <p>기업마당 공식 공고 탐색과 합성 기업 프로필 사전진단</p><a href="/docs">API 문서 보기 ↗</a></div></header>
 <main class="wrap">
   <div id="message" role="status" aria-live="polite"></div>
+  <section id="management-section" aria-labelledby="management-heading">
+    <h2 id="management-heading">로컬 수집 · 검토 도구</h2>
+    <p id="management-status" class="muted">로컬 관리 기능 확인 중…</p>
+    <div id="management-controls" hidden>
+      <form id="collection-form" class="search">
+        <label for="collection-count">공식 공고 수집 개수 (최대 100건)</label>
+        <input id="collection-count" type="number" min="1" max="100" value="30" required>
+        <button id="collect-button">공고 수집 시작</button>
+        <label class="inline"><input id="collect-documents" type="checkbox" checked>PDF · HWPX 첨부도 수집</label>
+      </form>
+      <p class="muted">키는 서버의 비공개 .env에서만 읽습니다. HWP는 PDF/HWPX 변환이 필요합니다.</p>
+      <div id="collection-jobs" aria-live="polite"></div>
+    </div>
+  </section>
   <section aria-labelledby="notices-heading">
     <h2 id="notices-heading">공식 지원사업 공고</h2>
     <form id="search-form" class="search"><label for="search">공고 제목 검색</label>
@@ -25,6 +40,46 @@
     <input id="passage-search" maxlength="200" placeholder="예: 지원대상, 신청기간"><button>근거 검색</button></form>
     <p id="passage-status" class="muted"></p><div id="passages"></div>
     <button type="button" id="more-passages" hidden>페이지 더 보기</button>
+    <div id="review-panel" hidden>
+      <h3>조건 초안 검토</h3>
+      <p class="alert">자동 초안은 승인된 조건이 아닙니다. 원문과 예외를 직접 확인하세요. 여기서는 검증 파일만 내려받으며, 승인 등록은 별도 명령으로 진행합니다.</p>
+      <button id="retry-document" type="button">선택 공고 첨부 재수집</button>
+      <div id="review-status" role="status" aria-live="polite"></div>
+      <div id="suggestions"></div>
+      <form id="rule-form">
+        <div class="fields">
+          <label>조건 항목<select id="rule-field">
+            <option value="hq_region">본사 지역</option><option value="employee_count">종업원 수</option>
+            <option value="business_age_years">업력 (판정일 기준 만 연수)</option>
+            <option value="query_date">신청기간</option><option value="industry_code">업종 코드</option>
+            <option value="annual_sales_band">매출 구간 코드</option><option value="funding_purpose">자금 목적 코드</option>
+            <option value="certifications">인증 (하나 이상)</option>
+          </select></label>
+          <label>원문 위치<select id="rule-page" required></select></label>
+          <label id="rule-values-label">허용값 (쉼표로 구분)<input id="rule-values" maxlength="1000" placeholder="예: 대전, 서울"></label>
+          <label id="rule-min-label" hidden>최소 포함값 (인원 / 만 연수)<input id="rule-min" type="number" min="0"></label>
+          <label id="rule-max-label" hidden>최대 포함값 (인원 / 만 연수)<input id="rule-max" type="number" min="0"></label>
+          <label id="rule-start-label" hidden>신청 시작일<input id="rule-start" type="date"></label>
+          <label id="rule-end-label" hidden>신청 마감일<input id="rule-end" type="date"></label>
+        </div>
+        <details><summary>선택 위치의 저장된 원문 보기</summary><pre id="review-original"></pre></details>
+        <label for="rule-quote">정확한 인용문 (원문에서 그대로 복사, 5~5,000자)</label>
+        <textarea id="rule-quote" rows="4" minlength="5" maxlength="5000" required></textarea>
+        <button id="add-rule" type="submit">검토 목록에 조건 추가</button>
+      </form>
+      <div id="review-rules"></div>
+      <form id="export-review-form">
+        <label for="reviewer">검토자 식별명</label><input id="reviewer" maxlength="100" placeholder="실명 대신 내부 식별명 사용 가능" required>
+        <label class="inline"><input id="scope-complete" type="checkbox">지원 대상·제외 조건·예외·기준일을 모두 검토해 전체 판정 범위를 포함했습니다.</label>
+        <label class="inline"><input id="review-confirmed" type="checkbox" required>각 조건과 인용문을 원문과 대조했습니다.</label>
+        <button id="export-review">원문 검증 후 검토 파일 다운로드</button>
+        <p class="muted">전체 범위 확인을 체크하지 않으면 일부 조건만 승인되어 전체 조건 충족(PASS) 판정은 차단됩니다.</p>
+      </form>
+      <h3>이미지 PDF 문자 인식 (참고용)</h3>
+      <form id="ocr-form" class="search"><label for="ocr-pages">PDF 페이지 번호 (쉼표로 최대 3개)</label>
+        <input id="ocr-pages" value="1" maxlength="30" required><button id="ocr-button">OCR 미리보기</button></form>
+      <p id="ocr-status" class="muted"></p><pre id="ocr-output"></pre>
+    </div>
   </section>
   <section aria-labelledby="profile-heading">
     <h2 id="profile-heading">기업 조건 사전진단</h2>

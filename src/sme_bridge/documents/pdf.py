@@ -57,6 +57,10 @@ class OfficialPdfDownloader:
         if self._owns_client:
             await self._client.aclose()
 
+    def _validate_content(self, data: bytes) -> None:
+        if not data.startswith(b"%PDF-"):
+            raise DocumentDownloadError("downloaded content is not a PDF")
+
     def _validate_url(self, url: str) -> None:
         parsed = urlparse(url)
         try:
@@ -105,11 +109,18 @@ class OfficialPdfDownloader:
                 raise DocumentDownloadError("PDF download failed") from exc
 
             data = bytes(body)
-            if not data.startswith(b"%PDF-"):
-                raise DocumentDownloadError("downloaded content is not a PDF")
+            self._validate_content(data)
             return data
 
         raise DocumentDownloadError("PDF redirect limit exceeded")
+
+
+class OfficialAttachmentDownloader(OfficialPdfDownloader):
+    """Same HTTPS and size controls, with HWPX ZIP containers also accepted."""
+
+    def _validate_content(self, data: bytes) -> None:
+        if not data.startswith((b"%PDF-", b"PK\x03\x04")):
+            raise DocumentDownloadError("unsupported attachment: PDF or HWPX required")
 
 
 def parse_pdf(

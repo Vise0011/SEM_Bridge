@@ -59,9 +59,9 @@ ON CONFLICT (notice_id, notice_version_hash, pdf_sha256) DO NOTHING
 INSERT_PASSAGE_SQL = """
 INSERT INTO notice_passages (
     notice_id, notice_version_hash, pdf_sha256, page_number,
-    text, character_count, requires_ocr, trust_level, security_flags
+    text, character_count, requires_ocr, trust_level, security_flags, document_kind, location_kind
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (notice_id, notice_version_hash, pdf_sha256, page_number) DO NOTHING
 """
 
@@ -159,6 +159,14 @@ class PostgresDocumentRepository:
             async with connection.transaction():
                 await connection.execute(CREATE_DOCUMENTS_TABLE_SQL)
                 await connection.execute(CREATE_PASSAGES_TABLE_SQL)
+                await connection.execute(
+                    "ALTER TABLE notice_passages ADD COLUMN IF NOT EXISTS "
+                    "document_kind TEXT NOT NULL DEFAULT 'PDF'"
+                )
+                await connection.execute(
+                    "ALTER TABLE notice_passages ADD COLUMN IF NOT EXISTS "
+                    "location_kind TEXT NOT NULL DEFAULT 'PAGE'"
+                )
                 await connection.execute(CREATE_CURRENT_DOCUMENT_SQL)
 
     async def save(
@@ -194,6 +202,8 @@ class PostgresDocumentRepository:
                             passage.requires_ocr,
                             passage.trust_level,
                             [flag.value for flag in passage.security_flags],
+                            passage.document_kind,
+                            passage.location_kind,
                         )
                         for passage in passages
                     ],

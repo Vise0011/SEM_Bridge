@@ -16,6 +16,8 @@ class PdfPage(BaseModel):
     text: str
     character_count: int = Field(ge=0)
     requires_ocr: bool
+    document_kind: Literal["PDF", "HWPX"] = "PDF"
+    location_kind: Literal["PAGE", "SECTION"] = "PAGE"
 
 
 class ParsedPdf(BaseModel):
@@ -38,6 +40,8 @@ class DocumentPassage(BaseModel):
     text: str
     character_count: int = Field(ge=0)
     requires_ocr: bool
+    document_kind: Literal["PDF", "HWPX"] = "PDF"
+    location_kind: Literal["PAGE", "SECTION"] = "PAGE"
     trust_level: str = "UNTRUSTED_SOURCE"
     security_flags: list[SecurityFlag] = Field(default_factory=list)
 
