@@ -3,6 +3,7 @@
 import hashlib
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import httpx
@@ -27,12 +28,23 @@ def install(destination: Path) -> None:
                 f"{COMMIT}/{language}.traineddata"
             )
             data = bytearray()
-            with client.stream("GET", url) as response:
-                response.raise_for_status()
-                for chunk in response.iter_bytes():
-                    data.extend(chunk)
-                    if len(data) > 8 * 1024 * 1024:
-                        raise ValueError("OCR model exceeds size limit")
+            for attempt in range(3):
+                data = bytearray()
+                try:
+                    with client.stream("GET", url) as response:
+                        response.raise_for_status()
+                        for chunk in response.iter_bytes():
+                            data.extend(chunk)
+                            if len(data) > 8 * 1024 * 1024:
+                                raise ValueError("OCR model exceeds size limit")
+                    break
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code not in {429, 500, 502, 503, 504} or attempt == 2:
+                        raise
+                except httpx.RequestError:
+                    if attempt == 2:
+                        raise
+                time.sleep(attempt + 1)
             if hashlib.sha256(data).hexdigest() != checksum:
                 raise ValueError("OCR model checksum mismatch")
             # Atomic install: partial downloads never replace a usable model.
@@ -51,7 +63,9 @@ if __name__ == "__main__":
 
     try:
         install(Path(Settings().ocr_tessdata_path))
-    except (httpx.HTTPError, ValueError, OSError):
+    except httpx.HTTPStatusError as exc:
+        raise SystemExit(f"OCR setup failed: upstream HTTP {exc.response.status_code}.") from None
+    except (httpx.HTTPError, ValueError, OSError) as exc:
         raise SystemExit(
-            "OCR setup failed: check network, writable path and model integrity."
+            f"OCR setup failed: {type(exc).__name__}; check network, writable path and integrity."
         ) from None

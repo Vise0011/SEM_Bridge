@@ -50,7 +50,9 @@ def management_access(request: Request) -> Storage:
     if not settings.local_management_enabled:
         raise HTTPException(403, "Local management is disabled")
     expected = request.app.state.management_token
-    if not hmac.compare_digest(request.headers.get("x-bridge-token", ""), expected):
+    if not hmac.compare_digest(
+        request.headers.get("x-bridge-token", "").encode("utf-8"), expected.encode("utf-8")
+    ):
         raise HTTPException(403, "Management token is required")
     return request.app.state.storage  # type: ignore[no-any-return]
 

@@ -90,6 +90,12 @@ async def test_management_requires_token_origin_loopback_and_enabled(management_
     assert (await client.get("/v1/manage/status")).json()["token"] is None
 
 
+async def test_non_ascii_management_token_rejected_not_internal_error(management_api):
+    client, _ = management_api
+    response = await client.get("/v1/manage/jobs", headers={b"X-Bridge-Token": b"\xff"})
+    assert response.status_code == 403
+
+
 @pytest.mark.parametrize("kind", ["PDF", "HWPX"])
 async def test_drafts_validate_but_never_publish_and_stale_quote_rejected(management_api, kind):
     client, app = management_api
