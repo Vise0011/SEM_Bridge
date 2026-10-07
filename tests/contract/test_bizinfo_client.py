@@ -107,3 +107,37 @@ async def test_invalid_response_contract_is_rejected() -> None:
     async with BizinfoClient("secret-key", backoff_seconds=0) as client:
         with pytest.raises(BizinfoContractError, match="invalid JSON contract"):
             await client.fetch_finance_notices()
+
+
+@respx.mock
+async def test_live_array_contract_and_official_field_names() -> None:
+    respx.get(BIZINFO_API_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "jsonArray": [
+                    {
+                        "pblancId": "PBLN_LIVE",
+                        "pblancNm": "실제 응답 형식",
+                        "pblancUrl": "/web/example",
+                        "printFlpthNm": "/cmm/fms/getFile.do?atchFileId=sample",
+                        "printFileNm": "공고.pdf",
+                        "hashtags": "금융,서울",
+                    }
+                ],
+            },
+        )
+    )
+    async with BizinfoClient(" abc123 ") as client:
+        notices = await client.fetch_finance_notices()
+    assert notices[0].attachment_name == "공고.pdf"
+    assert notices[0].hashtags == ["금융", "서울"]
+    assert notices[0].url == "https://www.bizinfo.go.kr/web/example"
+    assert notices[0].attachment_url.startswith("https://www.bizinfo.go.kr/cmm/")
+
+
+@respx.mock
+async def test_empty_official_array_is_supported() -> None:
+    respx.get(BIZINFO_API_URL).mock(return_value=httpx.Response(200, json={"jsonArray": []}))
+    async with BizinfoClient("abc123") as client:
+        assert await client.fetch_finance_notices() == []

@@ -1,5 +1,7 @@
 """Versioned notice snapshots produced by ingestion."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -30,3 +32,14 @@ class IngestionReport(BaseModel):
     fetched: int = Field(ge=0)
     new_versions: int = Field(ge=0)
     unchanged: int = Field(ge=0)
+
+
+class NoticeRecord(BaseModel):
+    snapshot: NoticeSnapshot
+    fetched_at: datetime
+
+
+class NoticeList(BaseModel):
+    items: list[NoticeRecord]
+    limit: int
+    offset: int

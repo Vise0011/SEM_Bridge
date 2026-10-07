@@ -40,6 +40,37 @@ def test_aggregate_status_returns_pass_when_all_rules_pass() -> None:
     assert aggregate_status(results) is RuleStatus.PASS
 
 
+def test_empty_results_never_pass() -> None:
+    assert aggregate_status([]) is RuleStatus.UNKNOWN
+
+
+def test_mismatched_official_notice_evidence_never_verifies() -> None:
+    profile = BusinessProfile.model_validate(
+        {
+            "business_type": "CORPORATION",
+            "hq_region": "대전",
+            "query_date": "2026-10-07",
+        }
+    )
+    program = ProgramDefinition(
+        program_id="PBLN_TEST",
+        title="공식 테스트",
+        source_kind="OFFICIAL_NOTICE",
+        notice_version="sha256:version-a",
+        conditions=[RegionRule(allowed_regions=frozenset({"대전"}), evidence_id="EV-1")],
+    )
+    evidence = EvidenceReference(
+        evidence_id="EV-1",
+        passage="대전 소재 기업",
+        notice_version="sha256:version-b",
+        source_kind="OFFICIAL_NOTICE",
+        pdf_sha256="a" * 64,
+    )
+    result = attach_verified_evidence(evaluate_program(profile, program), [evidence])
+    assert result.status is RuleStatus.UNKNOWN
+    assert result.missing_evidence_ids == ["EV-1"]
+
+
 def test_evaluate_program_uses_typed_approved_conditions() -> None:
     profile = BusinessProfile.model_validate(
         {

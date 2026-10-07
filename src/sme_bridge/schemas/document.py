@@ -53,3 +53,16 @@ class DocumentIngestionResult(BaseModel):
     page_count: int = Field(default=0, ge=0)
     ocr_required_pages: list[int] = Field(default_factory=list)
     flagged_pages: int = Field(default=0, ge=0)
+
+
+class StoredPassage(DocumentPassage):
+    notice_id: str
+    notice_version_hash: str
+    pdf_sha256: str
+    source_url: str
+
+
+class PassageList(BaseModel):
+    items: list[StoredPassage]
+    limit: int
+    offset: int

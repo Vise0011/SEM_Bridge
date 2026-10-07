@@ -1,6 +1,7 @@
 """Schemas for eligibility cases."""
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +15,7 @@ class CaseStatus(StrEnum):
 
     RECEIVED = "RECEIVED"
     RULE_CHECKED = "RULE_CHECKED"
+    REVIEW_PENDING = "REVIEW_PENDING"
 
 
 class ProgramEvaluation(BaseModel):
@@ -27,6 +29,11 @@ class ProgramEvaluation(BaseModel):
     review_required: bool = False
     evidence: list[EvidenceReference] = Field(default_factory=list)
     missing_evidence_ids: list[str] = Field(default_factory=list)
+    title: str = ""
+    notice_version: str | None = None
+    source_kind: str = "SYNTHETIC_DEMO"
+    review_reasons: list[str] = Field(default_factory=list)
+    source_url: str | None = None
 
 
 class CaseCreated(BaseModel):
@@ -36,3 +43,5 @@ class CaseCreated(BaseModel):
     status: CaseStatus
     profile: BusinessProfile
     programs: list[ProgramEvaluation]
+    source: Literal["official", "demo"] = "demo"
+    notes: list[str] = Field(default_factory=list)

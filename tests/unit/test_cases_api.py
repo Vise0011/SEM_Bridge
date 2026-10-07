@@ -25,7 +25,7 @@ async def test_create_case_accepts_valid_profile() -> None:
     transport = httpx.ASGITransport(app=app)
 
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/v1/cases", json=valid_profile_payload())
+        response = await client.post("/v1/cases?source=demo", json=valid_profile_payload())
 
     body = response.json()
     assert response.status_code == 201
@@ -47,7 +47,7 @@ async def test_create_case_rejects_invalid_profile() -> None:
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/v1/cases", json=payload)
+        response = await client.post("/v1/cases?source=demo", json=payload)
 
     assert response.status_code == 422
 
@@ -59,7 +59,7 @@ async def test_create_case_returns_unknown_for_missing_region() -> None:
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/v1/cases", json=payload)
+        response = await client.post("/v1/cases?source=demo", json=payload)
 
     assert response.status_code == 201
     program = response.json()["programs"][0]
@@ -78,7 +78,7 @@ async def test_create_case_prioritizes_fail_over_unknown() -> None:
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/v1/cases", json=payload)
+        response = await client.post("/v1/cases?source=demo", json=payload)
 
     assert response.status_code == 201
     assert response.json()["programs"][0]["status"] == "FAIL"
@@ -88,7 +88,7 @@ async def test_create_case_prioritizes_fail_over_unknown() -> None:
 async def test_get_case_returns_saved_snapshot() -> None:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        created_response = await client.post("/v1/cases", json=valid_profile_payload())
+        created_response = await client.post("/v1/cases?source=demo", json=valid_profile_payload())
         created = created_response.json()
         response = await client.get(f"/v1/cases/{created['case_id']}")
 

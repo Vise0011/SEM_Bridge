@@ -40,6 +40,8 @@ FOLLOW_UP_QUESTIONS = {
 
 def aggregate_status(results: Sequence[RuleResult]) -> RuleStatus:
     """Aggregate rule outcomes conservatively: FAIL, then UNKNOWN, then PASS."""
+    if not results:
+        return RuleStatus.UNKNOWN
     statuses = {result.status for result in results}
     if RuleStatus.FAIL in statuses:
         return RuleStatus.FAIL
@@ -85,13 +87,21 @@ def evaluate_program(
         FOLLOW_UP_QUESTIONS[field] for field in missing_fields if field in FOLLOW_UP_QUESTIONS
     ]
 
+    status = aggregate_status(results)
+    partial_scope = not program.scope_complete
+    if partial_scope and status is RuleStatus.PASS:
+        status = RuleStatus.UNKNOWN
     return ProgramEvaluation(
         program_id=program.program_id,
-        status=aggregate_status(results),
+        title=program.title,
+        notice_version=program.notice_version,
+        source_kind=program.source_kind.value,
+        status=status,
         rule_results=results,
         missing_fields=missing_fields,
         follow_up_questions=follow_up_questions,
-        review_required=bool(missing_fields),
+        review_required=bool(missing_fields) or partial_scope,
+        review_reasons=["전체 자격 조건의 검토가 완료되지 않았습니다."] if partial_scope else [],
     )
 
 
@@ -100,7 +110,16 @@ def attach_verified_evidence(
     available: list[EvidenceReference],
 ) -> ProgramEvaluation:
     """Attach citations and downgrade any result whose approved evidence is missing."""
-    by_id = {item.evidence_id: item for item in available}
+    by_id = {
+        item.evidence_id: item
+        for item in available
+        if evaluation.notice_version is None
+        or (
+            item.notice_version == evaluation.notice_version
+            and item.source_kind.value == evaluation.source_kind
+            and (evaluation.source_kind != "OFFICIAL_NOTICE" or item.pdf_sha256 is not None)
+        )
+    }
     required_ids = list(dict.fromkeys(result.evidence_id for result in evaluation.rule_results))
     evidence = [by_id[evidence_id] for evidence_id in required_ids if evidence_id in by_id]
     missing = [evidence_id for evidence_id in required_ids if evidence_id not in by_id]

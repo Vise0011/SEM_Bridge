@@ -4,6 +4,7 @@ import asyncio
 import sys
 
 from sme_bridge.clients import BizinfoClient, BizinfoClientError
+from sme_bridge.clients.bizinfo import BizinfoContractError
 from sme_bridge.config import get_settings
 
 
@@ -19,6 +20,12 @@ async def main() -> int:
     try:
         async with BizinfoClient(api_key.get_secret_value()) as client:
             notices = await client.fetch_finance_notices(count=5)
+    except BizinfoContractError:
+        print(
+            "Bizinfo response format is unsupported. Run scripts/diagnose_bizinfo.py.",
+            file=sys.stderr,
+        )
+        return 1
     except BizinfoClientError:
         print(
             "Bizinfo API check failed. Verify the issued key and network connection.",

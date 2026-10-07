@@ -359,7 +359,7 @@ class Neo4jProgramRepository:
         items = [
             ("EV-DEMO-REGION", "본사가 대전광역시에 소재한 기업", 1),
             ("EV-DEMO-EMPLOYEE", "상시 종업원 수가 10명 이하인 기업", 1),
-            ("EV-DEMO-AGE", "공고일 기준 업력 7년 이하인 기업", 2),
+            ("EV-DEMO-AGE", "판정 기준일 기준 업력 7년 이하인 기업", 2),
             ("EV-DEMO-PERIOD", "신청기간: 2026년 1월 1일부터 12월 31일까지", 2),
             ("EV-DEMO-INDUSTRY", "지원 업종 코드: J62", 3),
             ("EV-DEMO-SALES", "연 매출 10억원 미만 기업", 3),

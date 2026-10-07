@@ -1,10 +1,11 @@
 """Repositories for immutable support-notice versions."""
 
+from datetime import UTC, datetime
 from typing import Protocol
 
 import asyncpg
 
-from sme_bridge.schemas.notice import NoticeSnapshot
+from sme_bridge.schemas.notice import NoticeRecord, NoticeSnapshot
 
 CREATE_NOTICE_VERSIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS notice_versions (
@@ -51,6 +52,16 @@ class NoticeRepository(Protocol):
         """Return True only when a new immutable version is inserted."""
         ...
 
+    async def list_current(
+        self, *, query: str = "", limit: int = 30, offset: int = 0
+    ) -> list[NoticeRecord]: ...
+
+    async def find(
+        self, notice_id: str, version_hash: str | None = None
+    ) -> NoticeRecord | None: ...
+
+    async def list_versions(self, notice_id: str) -> list[NoticeRecord]: ...
+
 
 class InMemoryNoticeRepository:
     """Deterministic notice repository for unit tests."""
@@ -65,6 +76,31 @@ class InMemoryNoticeRepository:
         self.versions.setdefault(key, snapshot)
         self.current[snapshot.notice_id] = snapshot
         return is_new
+
+    async def list_current(
+        self, *, query: str = "", limit: int = 30, offset: int = 0
+    ) -> list[NoticeRecord]:
+        values = sorted(self.current.values(), key=lambda item: item.notice_id, reverse=True)
+        values = [item for item in values if query.casefold() in item.title.casefold()]
+        return [
+            NoticeRecord(snapshot=item, fetched_at=datetime.now(UTC))
+            for item in values[offset : offset + limit]
+        ]
+
+    async def find(self, notice_id: str, version_hash: str | None = None) -> NoticeRecord | None:
+        item = (
+            self.current.get(notice_id)
+            if version_hash is None
+            else self.versions.get((notice_id, version_hash))
+        )
+        return None if item is None else NoticeRecord(snapshot=item, fetched_at=datetime.now(UTC))
+
+    async def list_versions(self, notice_id: str) -> list[NoticeRecord]:
+        return [
+            NoticeRecord(snapshot=item, fetched_at=datetime.now(UTC))
+            for (identifier, _), item in self.versions.items()
+            if identifier == notice_id
+        ]
 
 
 class PostgresNoticeRepository:
@@ -98,3 +134,58 @@ class PostgresNoticeRepository:
                     snapshot.url,
                 )
         return str(result) == "INSERT 0 1"
+
+    async def list_current(
+        self, *, query: str = "", limit: int = 30, offset: int = 0
+    ) -> list[NoticeRecord]:
+        async with self._pool.acquire() as connection:
+            rows = await connection.fetch(
+                """SELECT v.payload, v.fetched_at FROM notices n
+                JOIN notice_versions v ON v.notice_id=n.notice_id
+                    AND v.version_hash=n.current_version_hash
+                WHERE position(lower($1) in lower(n.title)) > 0
+                ORDER BY n.updated_at DESC, n.notice_id LIMIT $2 OFFSET $3""",
+                query,
+                limit,
+                offset,
+            )
+        return [
+            NoticeRecord(
+                snapshot=NoticeSnapshot.model_validate_json(row["payload"]),
+                fetched_at=row["fetched_at"],
+            )
+            for row in rows
+        ]
+
+    async def find(self, notice_id: str, version_hash: str | None = None) -> NoticeRecord | None:
+        async with self._pool.acquire() as connection:
+            row = await connection.fetchrow(
+                """SELECT v.payload, v.fetched_at FROM notice_versions v
+                WHERE v.notice_id=$1 AND v.version_hash=COALESCE($2,
+                    (SELECT current_version_hash FROM notices WHERE notice_id=$1))""",
+                notice_id,
+                version_hash,
+            )
+        return (
+            None
+            if row is None
+            else NoticeRecord(
+                snapshot=NoticeSnapshot.model_validate_json(row["payload"]),
+                fetched_at=row["fetched_at"],
+            )
+        )
+
+    async def list_versions(self, notice_id: str) -> list[NoticeRecord]:
+        async with self._pool.acquire() as connection:
+            rows = await connection.fetch(
+                """SELECT payload, fetched_at FROM notice_versions WHERE notice_id=$1
+                ORDER BY fetched_at DESC, version_hash LIMIT 100""",
+                notice_id,
+            )
+        return [
+            NoticeRecord(
+                snapshot=NoticeSnapshot.model_validate_json(row["payload"]),
+                fetched_at=row["fetched_at"],
+            )
+            for row in rows
+        ]

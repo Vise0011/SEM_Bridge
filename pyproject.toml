@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sme-bridge"
 version = "0.1.0"
 description = "Evidence-based pre-screening for Korean SME support programs"
-readme = "SME_Bridge_README.md"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "asyncpg>=0.29,<1",
@@ -30,6 +30,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+sme_bridge = ["web/*.html", "web/*.css", "web/*.js", "web/*.svg"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

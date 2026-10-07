@@ -47,9 +47,18 @@ class BizinfoNotice(BaseModel):
         validation_alias=AliasChoices("reqstBeginEndDe", "reqstDt"),
     )
     target: str = Field(default="", validation_alias="trgetNm")
-    attachment_url: str = Field(default="", validation_alias="flpthNm")
-    attachment_name: str = Field(default="", validation_alias="fileNm")
-    hashtags_raw: str = Field(default="", validation_alias="hashTags")
+    attachment_url: str = Field(
+        default="", validation_alias=AliasChoices("printFlpthNm", "flpthNm")
+    )
+    attachment_name: str = Field(default="", validation_alias=AliasChoices("printFileNm", "fileNm"))
+    hashtags_raw: str = Field(default="", validation_alias=AliasChoices("hashtags", "hashTags"))
+
+    @field_validator("url", "attachment_url")
+    @classmethod
+    def normalize_official_url(cls, value: str) -> str:
+        if value.startswith("/") and not value.startswith("//"):
+            return "https://www.bizinfo.go.kr" + value
+        return value
 
     @property
     def hashtags(self) -> list[str]:
@@ -77,7 +86,7 @@ class BizinfoResponse(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    json_array: BizinfoChannel = Field(alias="jsonArray")
+    json_array: BizinfoChannel | list[BizinfoNotice] = Field(alias="jsonArray")
 
 
 class BizinfoClient:
@@ -96,7 +105,7 @@ class BizinfoClient:
             raise ValueError("Bizinfo API key is required")
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
-        self._api_key = api_key
+        self._api_key = api_key.strip()
         self._client = client or httpx.AsyncClient(timeout=timeout_seconds)
         self._owns_client = client is None
         self._max_attempts = max_attempts
@@ -143,6 +152,8 @@ class BizinfoClient:
             parsed = BizinfoResponse.model_validate(payload)
         except (ValueError, ValidationError) as exc:
             raise BizinfoContractError("Bizinfo returned an invalid JSON contract") from exc
+        if isinstance(parsed.json_array, list):
+            return parsed.json_array
         return parsed.json_array.item
 
     async def _get_with_retry(self, params: dict[str, str]) -> httpx.Response:

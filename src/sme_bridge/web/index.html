@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SEM Bridge · 지원사업 사전진단</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script>
+</head>
+<body>
+<header><div class="wrap"><p class="brand">SEM Bridge</p><h1>지원 공고를 찾고, 조건을 근거와 함께 확인하세요.</h1>
+<p>기업마당 공식 공고 탐색과 합성 기업 프로필 사전진단</p><a href="/docs">API 문서 보기 ↗</a></div></header>
+<main class="wrap">
+  <div id="message" role="status" aria-live="polite"></div>
+  <section aria-labelledby="notices-heading">
+    <h2 id="notices-heading">공식 지원사업 공고</h2>
+    <form id="search-form" class="search"><label for="search">공고 제목 검색</label>
+    <input id="search" maxlength="200" placeholder="지역 또는 사업명"><button>검색</button></form>
+    <p id="list-status" class="muted"></p><div id="notices" class="cards"></div>
+    <div class="pager"><button id="previous" type="button">이전</button><span id="page-label"></span>
+    <button id="next" type="button">다음</button></div>
+  </section>
+  <section id="detail-section" hidden aria-labelledby="detail-heading">
+    <h2 id="detail-heading">공고 상세</h2><div id="detail"></div>
+    <form id="passage-form" class="search"><label for="passage-search">원문 페이지 검색</label>
+    <input id="passage-search" maxlength="200" placeholder="예: 지원대상, 신청기간"><button>근거 검색</button></form>
+    <p id="passage-status" class="muted"></p><div id="passages"></div>
+    <button type="button" id="more-passages" hidden>페이지 더 보기</button>
+  </section>
+  <section aria-labelledby="profile-heading">
+    <h2 id="profile-heading">기업 조건 사전진단</h2>
+    <p class="muted">합성 기업 정보를 입력하세요. 공식 공고는 승인된 조건만 판정하며, 검토 전에는 확인 필요로 표시합니다.</p>
+    <form id="profile-form">
+      <div class="fields">
+      <label>진단 대상<select id="source"><option value="official">공식 공고</option><option value="demo">합성 공고 데모</option></select></label>
+      <label>기업 형태<select id="business-type"><option value="CORPORATION">법인</option><option value="SOLE_PROPRIETOR">개인사업자</option></select></label>
+      <label>본사 지역<input id="region" value="대전" maxlength="30" placeholder="모르면 비워두세요"></label>
+      <label>설립일<input id="established" type="date" value="2023-03-15"></label>
+      <label>업종 코드<input id="industry" value="J62" pattern="[A-Z][0-9]{2}" placeholder="예: J62"></label>
+      <label>종업원 수<input id="employees" type="number" min="0" value="8"></label>
+      <label>연 매출<select id="sales"><option value="">확인 필요</option><option value="UNDER_1B_KRW" selected>10억원 미만</option><option value="FROM_1B_TO_5B_KRW">10억원 이상 ~ 50억원 이하</option><option value="OVER_5B_KRW">50억원 초과</option></select></label>
+      <label>자금 목적<select id="funding"><option value="">확인 필요</option><option value="WORKING_CAPITAL" selected>운전자금</option><option value="FACILITY_CAPITAL">시설자금</option><option value="BOTH">운전·시설자금</option></select></label>
+      <label>보유 인증<input id="certifications" placeholder="쉼표로 구분, 없으면 비워두세요" maxlength="1000"></label>
+      <label>판정 기준일<input id="query-date" type="date" required></label>
+      </div>
+      <label class="inline"><input id="selected-only" type="checkbox">선택한 공식 공고만 진단</label>
+      <button id="evaluate" type="submit">조건 확인하기</button>
+    </form>
+    <div id="results" aria-live="polite"></div>
+  </section>
+  <section><h2>저장된 결과 다시 보기</h2><form id="case-form" class="search">
+    <label for="case-id">결과 번호</label><input id="case-id" placeholder="case_…" maxlength="100" required><button>조회</button></form></section>
+</main>
+<footer class="wrap">개인 프로젝트의 사전진단 도구입니다. 최종 신청 자격은 해당 공고기관에 확인하세요.</footer>
+</body></html>
